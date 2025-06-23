@@ -1,0 +1,555 @@
+# Chinh_Sua_Phieu_Theo_Yeu_Cau.py
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox, simpledialog
+from PIL import Image, ImageTk
+import os
+import json
+import openpyxl
+from datetime import datetime
+
+# ======================== CÁC LỚP XỬ LÝ CHÍNH ========================
+
+class FormManager:
+    @staticmethod
+    def save_to_json(data, filename=None):
+        if not filename:
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".json",
+                filetypes=[("JSON files", "*.json")]
+            )
+            if not filename:
+                return False
+        
+        try:
+            with open(filename, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            return True
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể lưu file JSON: {str(e)}")
+            return False
+
+    @staticmethod
+    def save_to_excel(data, filename=None):
+        if not filename:
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".xlsx",
+                filetypes=[("Excel files", "*.xlsx")]
+            )
+            if not filename:
+                return False
+        
+        try:
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            
+            # Thêm tiêu đề
+            ws.append(["Trường dữ liệu", "Giá trị"])
+            
+            # Thêm dữ liệu
+            for key, value in data.items():
+                ws.append([key, value])
+                
+            wb.save(filename)
+            return True
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể lưu file Excel: {str(e)}")
+            return False
+
+    @staticmethod
+    def export_to_pdf(data):
+        # Triển khai xuất PDF ở đây (cần thêm thư viện như reportlab)
+        messagebox.showinfo("Thông báo", "Chức năng xuất PDF sẽ được triển khai sau")
+        return False
+
+    @staticmethod
+    def upload_to_gsheets(data):
+        # Triển khai gửi lên Google Sheets ở đây
+        messagebox.showinfo("Thông báo", "Chức năng gửi Google Sheets sẽ được triển khai sau")
+        return False
+
+# ======================== CÁC LỚP GIAO DIỆN ========================
+
+class MainMenu(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Phần mềm Quản lý Phiếu Thông Tin - BV Đa Khoa Long An")
+        self.geometry("800x600")
+        
+        # Tạo thư mục assets nếu chưa có
+        if not os.path.exists("assets"):
+            os.makedirs("assets")
+        
+        self.create_widgets()
+    
+    def create_widgets(self):
+        # Header
+        header = ttk.Frame(self)
+        header.pack(pady=20)
+        
+        ttk.Label(header, text="BỆNH VIỆN ĐA KHOA LONG AN", 
+                 font=("Arial", 14, "bold")).pack()
+        ttk.Label(header, text="PHẦN MỀM QUẢN LÝ PHIẾU THÔNG TIN", 
+                 font=("Arial", 12)).pack(pady=5)
+        
+        # Main content
+        main_content = ttk.Frame(self)
+        main_content.pack(expand=True, fill="both", padx=20, pady=10)
+        
+        # Tạo 3 thumbnail mẫu phiếu
+        self.create_thumbnails(main_content)
+        
+        # Nút thêm/thay thế mẫu
+        ttk.Button(self, text="Thay thế/Thêm mẫu", 
+                  command=self.add_replace_form).pack(pady=20)
+    
+    def create_thumbnails(self, parent):
+        # Frame chứa các thumbnail
+        thumb_frame = ttk.Frame(parent)
+        thumb_frame.pack(expand=True)
+        
+        # Danh sách các mẫu
+        forms = [
+            {"id": "01a", "name": "Mẫu 01a-CNTT", "desc": "Phiếu đề nghị sửa đổi thông tin"},
+            {"id": "01b", "name": "Mẫu 01b-CNTT", "desc": "Phiếu thay đổi thông tin"},
+            {"id": "02", "name": "Mẫu 02-CNTT", "desc": "Phiếu thay đổi thông tin"}
+        ]
+        
+        # Tạo thumbnail cho mỗi mẫu
+        for i, form in enumerate(forms):
+            frame = ttk.Frame(thumb_frame)
+            frame.grid(row=0, column=i, padx=20, pady=10)
+            
+            # Hiển thị hình ảnh (nếu có)
+            img_path = f"assets/mau_{form['id']}.png"
+            if os.path.exists(img_path):
+                try:
+                    img = Image.open(img_path)
+                    img = img.resize((200, 280), Image.LANCZOS)
+                    photo = ImageTk.PhotoImage(img)
+                    
+                    label_img = ttk.Label(frame, image=photo)
+                    label_img.image = photo
+                    label_img.pack()
+                except:
+                    ttk.Label(frame, text="[Hình ảnh mẫu]").pack()
+            else:
+                ttk.Label(frame, text="[Hình ảnh mẫu]").pack()
+            
+            # Thông tin mẫu
+            ttk.Label(frame, text=form["name"], font=("Arial", 10, "bold")).pack()
+            ttk.Label(frame, text=form["desc"]).pack()
+            
+            # Nút chọn
+            ttk.Button(frame, text="Chọn mẫu này", 
+                      command=lambda fid=form['id']: self.open_form(fid)).pack(pady=5)
+    
+    def open_form(self, form_id):
+        self.withdraw()  # Ẩn cửa sổ chính
+        
+        if form_id == "01a":
+            form_window = Form01a(self)
+        elif form_id == "01b":
+            form_window = Form01b(self)
+        elif form_id == "02":
+            form_window = Form02(self)
+        else:
+            messagebox.showerror("Lỗi", "Mẫu không tồn tại")
+            return
+        
+        form_window.mainloop()
+    
+    def add_replace_form(self):
+        # Mở hộp thoại chọn file ảnh
+        file_path = filedialog.askopenfilename(
+            filetypes=[("Image files", "*.png *.jpg *.jpeg")]
+        )
+        
+        if file_path:
+            # Lấy tên mẫu từ người dùng
+            form_name = simpledialog.askstring("Thêm mẫu", "Nhập tên mẫu:")
+            if form_name:
+                try:
+                    # Lưu ảnh vào thư mục assets
+                    img = Image.open(file_path)
+                    new_path = f"assets/mau_{len(os.listdir('assets'))+1}.png"
+                    img.save(new_path)
+                    
+                    # Cập nhật giao diện
+                    messagebox.showinfo("Thành công", "Đã thêm mẫu mới thành công!")
+                    self.destroy()
+                    MainMenu()
+                except Exception as e:
+                    messagebox.showerror("Lỗi", f"Không thể thêm mẫu: {str(e)}")
+
+class BaseForm(tk.Toplevel):
+    def __init__(self, master, title):
+        super().__init__(master)
+        self.title(title)
+        self.geometry("900x700")
+        self.master = master
+        
+        # Biến lưu dữ liệu
+        self.data = {}
+        
+        # Tạo các nút chức năng
+        self.create_action_buttons()
+    
+    def create_action_buttons(self):
+        btn_frame = ttk.Frame(self)
+        btn_frame.pack(side="bottom", pady=20)
+        
+        ttk.Button(btn_frame, text="Lưu JSON", 
+                  command=lambda: self.save_data("json")).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Lưu Excel", 
+                  command=lambda: self.save_data("excel")).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="In PDF", 
+                  command=lambda: self.save_data("pdf")).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Gửi Google Sheets", 
+                  command=lambda: self.save_data("gsheets")).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Quay lại", 
+                  command=self.go_back).pack(side="right", padx=5)
+    
+    def save_data(self, format_type):
+        # Thu thập dữ liệu từ form
+        self.collect_data()
+        
+        # Xử lý lưu dữ liệu
+        if format_type == "json":
+            success = FormManager.save_to_json(self.data)
+        elif format_type == "excel":
+            success = FormManager.save_to_excel(self.data)
+        elif format_type == "pdf":
+            success = FormManager.export_to_pdf(self.data)
+        elif format_type == "gsheets":
+            success = FormManager.upload_to_gsheets(self.data)
+        
+        if success:
+            messagebox.showinfo("Thành công", "Lưu dữ liệu thành công!")
+    
+    def collect_data(self):
+        # Thêm thời gian hiện tại
+        self.data["Thời gian"] = datetime.now().strftime("%H:%M %d/%m/%Y")
+    
+    def go_back(self):
+        self.destroy()
+        self.master.deiconify()
+
+class Form01a(BaseForm):
+    def __init__(self, master):
+        super().__init__(master, "PHIẾU ĐỀ NGHỊ SỬA ĐỔI THÔNG TIN - Mẫu 01a-CNTT")
+        self.create_form()
+    
+    def create_form(self):
+        # Header
+        header = ttk.Frame(self)
+        header.pack(pady=10)
+        
+        ttk.Label(header, text="BỆNH VIỆN ĐA KHOA LONG AN", 
+                 font=("Arial", 10, "bold")).grid(row=0, column=0, sticky="w")
+        ttk.Label(header, text="Mã số: QT-KHTH-QLCL-42\nPhiên bản: 1.0\nNgày ban hành: 19/02/2025", 
+                 justify="right").grid(row=0, column=1, sticky="e")
+        
+        # Tiêu đề chính
+        ttk.Label(self, text="PHIẾU ĐỀ NGHỊ SỬA ĐỔI THÔNG TIN", 
+                 font=("Arial", 12, "bold")).pack()
+        ttk.Label(self, text="Mẫu 01a-CNTT", borderwidth=1, relief="solid").pack(pady=5)
+        
+        # Form content
+        form_frame = ttk.Frame(self)
+        form_frame.pack(padx=20, pady=10, fill="both", expand=True)
+        
+        # Thời gian
+        ttk.Label(form_frame, text="……….giờ…….ngày…….tháng…….năm……….").grid(row=0, column=0, columnspan=3, sticky="w")
+        
+        # Khoa
+        ttk.Label(form_frame, text="Khoa:").grid(row=1, column=0, sticky="w")
+        self.khoa_entry = ttk.Entry(form_frame, width=30)
+        self.khoa_entry.grid(row=1, column=1, sticky="w")
+        
+        ttk.Label(form_frame, text="yêu cầu sửa thông tin bệnh nhân sau:").grid(row=1, column=2, sticky="w")
+        
+        # Thông tin bệnh nhân
+        ttk.Label(form_frame, text="Mã BA:").grid(row=2, column=0, sticky="w")
+        self.ma_ba_entry = ttk.Entry(form_frame)
+        self.ma_ba_entry.grid(row=2, column=1, sticky="w")
+        
+        ttk.Label(form_frame, text="Họ tên BN:").grid(row=3, column=0, sticky="w")
+        self.ho_ten_entry = ttk.Entry(form_frame, width=40)
+        self.ho_ten_entry.grid(row=3, column=1, sticky="w")
+        
+        ttk.Label(form_frame, text="Năm sinh:").grid(row=3, column=2, sticky="w")
+        self.nam_sinh_entry = ttk.Entry(form_frame)
+        self.nam_sinh_entry.grid(row=3, column=3, sticky="w")
+        
+        ttk.Label(form_frame, text="Địa chỉ:").grid(row=4, column=0, sticky="w")
+        self.dia_chi_entry = ttk.Entry(form_frame, width=60)
+        self.dia_chi_entry.grid(row=4, column=1, columnspan=3, sticky="w")
+        
+        ttk.Label(form_frame, text="Ngày giờ vào viện:").grid(row=5, column=0, sticky="w")
+        self.ngay_vao_vien_entry = ttk.Entry(form_frame)
+        self.ngay_vao_vien_entry.grid(row=5, column=1, sticky="w")
+        
+        # Thông tin thay đổi
+        ttk.Label(form_frame, text="Thông tin đề nghị thay đổi:").grid(row=6, column=0, sticky="w")
+        
+        self.bhyt_var = tk.BooleanVar()
+        ttk.Checkbutton(form_frame, text="Thông tin BHYT", variable=self.bhyt_var).grid(row=6, column=1, sticky="w")
+        
+        self.bn_var = tk.BooleanVar()
+        ttk.Checkbutton(form_frame, text="Thông tin bệnh nhân", variable=self.bn_var).grid(row=6, column=2, sticky="w")
+        
+        self.khac_var = tk.BooleanVar()
+        ttk.Checkbutton(form_frame, text="Khác:", variable=self.khac_var).grid(row=6, column=3, sticky="w")
+        
+        # Nội dung thay đổi
+        ttk.Label(form_frame, text="Các thông tin khác đều giữ nguyên, chỉ thay đổi nội dung ban đầu là:").grid(
+            row=7, column=0, columnspan=4, sticky="w")
+        
+        self.noi_dung_text = tk.Text(form_frame, height=5, width=80)
+        self.noi_dung_text.grid(row=8, column=0, columnspan=4, sticky="w")
+        
+        ttk.Label(form_frame, text="Thành nội dung:").grid(row=9, column=0, sticky="nw")
+        self.thanh_noi_dung_text = tk.Text(form_frame, height=5, width=80)
+        self.thanh_noi_dung_text.grid(row=10, column=0, columnspan=4, sticky="w")
+        
+        ttk.Label(form_frame, text="Lý do:").grid(row=11, column=0, sticky="nw")
+        self.ly_do_text = tk.Text(form_frame, height=3, width=80)
+        self.ly_do_text.grid(row=12, column=0, columnspan=4, sticky="w")
+        
+        # Chữ ký
+        sign_frame = ttk.Frame(form_frame)
+        sign_frame.grid(row=13, column=0, columnspan=4, pady=20)
+        
+        ttk.Label(sign_frame, text="LĐ.Khoa/Bs điều trị/trực\n(Ký, ghi rõ họ tên)", 
+                 justify="center").grid(row=0, column=0, padx=50)
+        ttk.Label(sign_frame, text="Người đề nghị\n(Ký, ghi rõ họ tên)", 
+                 justify="center").grid(row=0, column=1, padx=50)
+    
+    def collect_data(self):
+        super().collect_data()
+        
+        self.data.update({
+            "Khoa": self.khoa_entry.get(),
+            "Mã BA": self.ma_ba_entry.get(),
+            "Họ tên BN": self.ho_ten_entry.get(),
+            "Năm sinh": self.nam_sinh_entry.get(),
+            "Địa chỉ": self.dia_chi_entry.get(),
+            "Ngày giờ vào viện": self.ngay_vao_vien_entry.get(),
+            "Thông tin BHYT": self.bhyt_var.get(),
+            "Thông tin bệnh nhân": self.bn_var.get(),
+            "Thông tin khác": self.khac_var.get(),
+            "Nội dung thay đổi": self.noi_dung_text.get("1.0", tk.END).strip(),
+            "Thành nội dung": self.thanh_noi_dung_text.get("1.0", tk.END).strip(),
+            "Lý do": self.ly_do_text.get("1.0", tk.END).strip()
+        })
+
+class Form01b(BaseForm):
+    def __init__(self, master):
+        super().__init__(master, "PHIẾU THAY ĐỔI THÔNG TIN - Mẫu 01b-CNTT")
+        self.create_form()
+    
+    def create_form(self):
+        # Header
+        header = ttk.Frame(self)
+        header.pack(pady=10)
+        
+        ttk.Label(header, text="BỆNH VIỆN ĐA KHOA LONG AN", 
+                 font=("Arial", 10, "bold")).grid(row=0, column=0, sticky="w")
+        ttk.Label(header, text="Mã số: QT-KHTH-QLCL-42\nPhiên bản: 1.0\nNgày ban hành: 19/02/2025", 
+                 justify="right").grid(row=0, column=1, sticky="e")
+        
+        # Tiêu đề chính
+        ttk.Label(self, text="PHIẾU THAY ĐỔI THÔNG TIN", 
+                 font=("Arial", 12, "bold")).pack()
+        ttk.Label(self, text="Mẫu 01b-CNTT", borderwidth=1, relief="solid").pack(pady=5)
+        
+        # Form content
+        form_frame = ttk.Frame(self)
+        form_frame.pack(padx=20, pady=10, fill="both", expand=True)
+        
+        # Thời gian
+        ttk.Label(form_frame, text="……….giờ…….ngày…….tháng…….năm 20……").grid(
+            row=0, column=0, columnspan=4, sticky="w")
+        
+        # Họ tên
+        ttk.Label(form_frame, text="Tôi tên:").grid(row=1, column=0, sticky="w")
+        self.ho_ten_entry = ttk.Entry(form_frame, width=50)
+        self.ho_ten_entry.grid(row=1, column=1, columnspan=3, sticky="w")
+        
+        # Loại người làm đơn
+        self.loai_nguoi_var = tk.StringVar(value="")
+        ttk.Checkbutton(form_frame, text="Bệnh nhân", 
+                       variable=self.loai_nguoi_var, onvalue="BN").grid(
+                           row=2, column=0, sticky="w", padx=20)
+        ttk.Checkbutton(form_frame, text="Thân nhân của bệnh nhân:", 
+                       variable=self.loai_nguoi_var, onvalue="TN").grid(
+                           row=2, column=1, sticky="w")
+        
+        # Khoa điều trị
+        ttk.Label(form_frame, text="Hiện đang điều trị tại khoa:").grid(
+            row=3, column=0, sticky="w")
+        self.khoa_entry = ttk.Entry(form_frame, width=30)
+        self.khoa_entry.grid(row=3, column=1, sticky="w")
+        ttk.Label(form_frame, text="tôi yêu cầu sửa thông tin bệnh nhân sau:").grid(
+            row=3, column=2, sticky="w")
+        
+        # Thông tin thay đổi
+        ttk.Label(form_frame, text="Thông tin đề nghị thay đổi").grid(
+            row=4, column=0, sticky="w")
+        
+        self.bhyt_var = tk.BooleanVar()
+        ttk.Checkbutton(form_frame, text="Thông tin BHYT", 
+                       variable=self.bhyt_var).grid(row=4, column=1, sticky="w")
+        
+        self.bn_var = tk.BooleanVar()
+        ttk.Checkbutton(form_frame, text="Thông tin bệnh nhân", 
+                       variable=self.bn_var).grid(row=4, column=2, sticky="w")
+        
+        self.khac_var = tk.BooleanVar()
+        ttk.Checkbutton(form_frame, text="Khác:", 
+                       variable=self.khac_var).grid(row=4, column=3, sticky="w")
+        
+        # Nội dung thay đổi
+        ttk.Label(form_frame, text="Các thông tin khác đều giữ nguyên, chỉ thay đổi nội dung ban đầu là:").grid(
+            row=5, column=0, columnspan=4, sticky="w")
+        
+        self.noi_dung_text = tk.Text(form_frame, height=5, width=80)
+        self.noi_dung_text.grid(row=6, column=0, columnspan=4, sticky="w")
+        
+        ttk.Label(form_frame, text="Thành nội dung:").grid(row=7, column=0, sticky="nw")
+        self.thanh_noi_dung_text = tk.Text(form_frame, height=5, width=80)
+        self.thanh_noi_dung_text.grid(row=8, column=0, columnspan=4, sticky="w")
+        
+        ttk.Label(form_frame, text="Lý do:").grid(row=9, column=0, sticky="nw")
+        self.ly_do_text = tk.Text(form_frame, height=3, width=80)
+        self.ly_do_text.grid(row=10, column=0, columnspan=4, sticky="w")
+        
+        # Chữ ký
+        sign_frame = ttk.Frame(form_frame)
+        sign_frame.grid(row=11, column=0, columnspan=4, pady=20)
+        
+        ttk.Label(sign_frame, text="Người tiếp nhận đề nghị\n(Ký, ghi rõ họ tên)", 
+                 justify="center").grid(row=0, column=0, padx=50)
+        ttk.Label(sign_frame, text="Thân nhân/bệnh nhân\n(Ký, ghi rõ họ tên)", 
+                 justify="center").grid(row=0, column=1, padx=50)
+    
+    def collect_data(self):
+        super().collect_data()
+        
+        self.data.update({
+            "Họ tên": self.ho_ten_entry.get(),
+            "Loại người làm đơn": self.loai_nguoi_var.get(),
+            "Khoa điều trị": self.khoa_entry.get(),
+            "Thông tin BHYT": self.bhyt_var.get(),
+            "Thông tin bệnh nhân": self.bn_var.get(),
+            "Thông tin khác": self.khac_var.get(),
+            "Nội dung thay đổi": self.noi_dung_text.get("1.0", tk.END).strip(),
+            "Thành nội dung": self.thanh_noi_dung_text.get("1.0", tk.END).strip(),
+            "Lý do": self.ly_do_text.get("1.0", tk.END).strip()
+        })
+
+class Form02(BaseForm):
+    def __init__(self, master):
+        super().__init__(master, "PHIẾU THAY ĐỔI THÔNG TIN - Mẫu 02-CNTT")
+        self.create_form()
+    
+    def create_form(self):
+        # Tiêu đề
+        title = tk.Label(self, text="PHIẾU THAY ĐỔI THÔNG TIN", 
+                       font=("Times New Roman", 14, "bold"))
+        title.pack(pady=5)
+        
+        # Form content
+        form_frame = ttk.Frame(self)
+        form_frame.pack(padx=10, pady=10, fill="both")
+        
+        # Thời gian
+        tk.Label(form_frame, text="Giờ:").grid(row=0, column=0, sticky="e")
+        self.gio_entry = tk.Entry(form_frame, width=10)
+        self.gio_entry.grid(row=0, column=1)
+        
+        tk.Label(form_frame, text="Ngày:").grid(row=0, column=2, sticky="e")
+        self.ngay_entry = tk.Entry(form_frame, width=10)
+        self.ngay_entry.grid(row=0, column=3)
+        
+        tk.Label(form_frame, text="Tháng:").grid(row=0, column=4, sticky="e")
+        self.thang_entry = tk.Entry(form_frame, width=10)
+        self.thang_entry.grid(row=0, column=5)
+        
+        tk.Label(form_frame, text="Năm:").grid(row=0, column=6, sticky="e")
+        self.nam_entry = tk.Entry(form_frame, width=10)
+        self.nam_entry.grid(row=0, column=7)
+        
+        # Họ tên
+        tk.Label(form_frame, text="Tôi tên:").grid(row=1, column=0, sticky="w", pady=5)
+        self.ho_ten_entry = tk.Entry(form_frame, width=50)
+        self.ho_ten_entry.grid(row=1, column=1, columnspan=7, sticky="w")
+        
+        # Loại người làm đơn
+        self.loai_nguoi_var = tk.StringVar(value="")
+        tk.Checkbutton(form_frame, text="Bệnh nhân", 
+                      variable=self.loai_nguoi_var, onvalue="BN").grid(
+                          row=2, column=0, sticky="w")
+        tk.Checkbutton(form_frame, text="Thân nhân của bệnh nhân", 
+                      variable=self.loai_nguoi_var, onvalue="TN").grid(
+                          row=2, column=1, columnspan=3, sticky="w")
+        
+        # Khoa điều trị
+        tk.Label(form_frame, text="Hiện đang điều trị tại khoa:").grid(
+            row=3, column=0, sticky="w", pady=5)
+        self.khoa_entry = tk.Entry(form_frame, width=40)
+        self.khoa_entry.grid(row=3, column=1, columnspan=3, sticky="w")
+        
+        # Thông tin thay đổi
+        tk.Label(form_frame, text="Thông tin đề nghị thay đổi:").grid(
+            row=4, column=0, sticky="w")
+        
+        self.bhyt_var = tk.BooleanVar()
+        tk.Checkbutton(form_frame, text="Thông tin BHYT", 
+                      variable=self.bhyt_var).grid(row=4, column=1, sticky="w")
+        
+        self.bn_var = tk.BooleanVar()
+        tk.Checkbutton(form_frame, text="Thông tin bệnh nhân", 
+                      variable=self.bn_var).grid(row=4, column=2, sticky="w")
+        
+        self.khac_var = tk.BooleanVar()
+        tk.Checkbutton(form_frame, text="Khác:", 
+                      variable=self.khac_var).grid(row=4, column=3, sticky="w")
+        self.khac_mo_ta_entry = tk.Entry(form_frame, width=30)
+        self.khac_mo_ta_entry.grid(row=4, column=4, columnspan=3, sticky="w")
+        
+        # Thành nội dung
+        tk.Label(form_frame, text="Thành nội dung:").grid(row=5, column=0, sticky="nw")
+        self.thanh_noi_dung_text = tk.Text(form_frame, width=80, height=4)
+        self.thanh_noi_dung_text.grid(row=5, column=1, columnspan=7)
+        
+        # Lý do
+        tk.Label(form_frame, text="Lý do:").grid(row=6, column=0, sticky="nw")
+        self.ly_do_text = tk.Text(form_frame, width=80, height=2)
+        self.ly_do_text.grid(row=6, column=1, columnspan=7)
+        
+        # Chữ ký
+        tk.Label(form_frame, text="Người tiếp nhận đề nghị\n(Ký, ghi rõ họ tên)").grid(
+            row=7, column=2, pady=10)
+        tk.Label(form_frame, text="Thân nhân/bệnh nhân\n(Ký, ghi rõ họ tên)").grid(
+            row=7, column=5, pady=10)
+    
+    def collect_data(self):
+        super().collect_data()
+        
+        self.data.update({
+            "Thời gian": f"{self.gio_entry.get()} giờ {self.ngay_entry.get()} ngày {self.thang_entry.get()} tháng {self.nam_entry.get()} năm",
+            "Họ tên": self.ho_ten_entry.get(),
+            "Loại người làm đơn": self.loai_nguoi_var.get(),
+            "Khoa điều trị": self.khoa_entry.get(),
+            "Thông tin BHYT": self.bhyt_var.get(),
+            "Thông tin bệnh nhân": self.bn_var.get(),
+            "Thông tin khác": self.khac_var.get(),
+            "Mô tả khác": self.khac_mo_ta_entry.get(),
+            "Thành nội dung": self.thanh_noi_dung_text.get("1.0", tk.END).strip(),
+            "Lý do": self.ly_do_text.get("1.0", tk.END).strip()
+        })
+
+if __name__ == "__main__":
+    app = MainMenu()
+    app.mainloop()
